@@ -1,0 +1,16 @@
+# Python version: 3.13 (see .python-version)
+streamlit
+langchain
+langchain-community
+langchain-chroma
+langchain-cohere
+langchain-ollama
+langchain-experimental
+langchain-huggingface
+chromadb
+python-docx
+python-dotenv
+docling
+sentence-transformers
+rank-bm25
+cohere
