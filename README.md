@@ -1,19 +1,18 @@
-<h1 align="center">Academic Research Chatbot (Advanced RAG)</h1>
+<h1 align="center">Document-grounded Q&A Chatbot for Study Materials</h1>
 
 <p align="center">
-  <strong>An elegant, cost-optimized, and highly accurate Retrieval-Augmented Generation (RAG) system for academic research and document Q&A.</strong>
+  <strong>A cost-optimized and accurate Retrieval-Augmented Generation (RAG) chatbot for grounded Q&A on study materials.</strong>
 </p>
 
 ## Project Overview
 
-Academic Chatbot is a specialized conversational AI system designed to read, comprehend, and answer questions based on academic papers (PDF and Word documents).
+This chatbot is designed to read, understand, and answer questions grounded in your own study materials (PDF and Word documents).
 
 Built with scalability, high precision, and cost optimization in mind, this project avoids common pitfalls of naive RAG architectures by implementing Hybrid Search, Semantic Chunking, Query Rewriting, and Cross-Encoder Reranking, while shifting heavy generative operations to local LLMs.
 
-The result is a practical, production-minded RAG assistant with strong retrieval quality and transparent references.
+The result is a practical, production-minded document Q&A assistant with strong retrieval quality and transparent references.
 
 ## Key Engineering Features
-
 ### 1. Advanced Document Ingestion
 
 - Docling Parser:
@@ -134,3 +133,4 @@ streamlit run app.py
 - Uses modern retrieval design beyond basic vector top-k.
 - Balances quality, latency, and cost with practical engineering tradeoffs.
 - Provides transparent answer references in UI for trust and verification.
+- Focuses on grounded answers from uploaded materials instead of generic open-domain responses.
