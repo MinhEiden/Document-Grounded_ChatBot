@@ -8,6 +8,7 @@ import shutil
 from .loader import load_documents
 from .chunker import chunk_documents
 from .embedder import embed_and_store
+from .orchestrator import ingest_file
 
 def run_ingestion_pipeline(data_path: str = "./TrainData"):
     """

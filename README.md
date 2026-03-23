@@ -37,10 +37,10 @@ Applies a minimum rerank score threshold (> 0.35) before passing chunks to the g
 - Query Rewriting:
 Uses the last 10 messages as memory buffer to convert follow-up questions into standalone retrieval-ready queries.
 
-### 4. Cost-Optimized and Local-First Architecture
+### 4. Cloud-Ready LLM Architecture
 
-- Local Generative Models:
-Runs generation and rewrite on Ollama models (llama3.2, qwen, gemma2) to minimize token cost.
+- Gemini API Models:
+Runs generation and query rewrite via Gemini API to support server deployment (Streamlit Cloud).
 
 - Rate-Limit Throttling:
 Embeds in controlled batches (25 chunks per request) with a short delay between batches to stay stable on free-tier limits.
@@ -60,7 +60,7 @@ ChromaDB (local SQLite-based)
 Cohere (embed-multilingual-v3.0, rerank-multilingual-v3.0), HuggingFace (all-MiniLM-L6-v2)
 
 - LLM Engine:
-Ollama (local Llama 3.2 by default)
+Gemini API (default model: gemini-1.5-flash)
 
 - Document Parsing:
 Docling
@@ -70,8 +70,8 @@ Docling
 - Python:
 3.13 (recommended and currently used in this project)
 
-- Ollama:
-Required for local generation model (default: llama3.2)
+- API Keys:
+`COHERE_API_KEY` and `GEMINI_API_KEY` are required.
 
 ## Project Structure
 
@@ -81,17 +81,26 @@ Academic_Chatbot/
 |- app.py
 |- README.md
 |- requirements.txt
-|- chroma_db/
+|- vector_store/
+|- temp_uploads/
+|- .streamlit/
+|  |- config.toml
+|  |- secrets.toml.example
 |- ingestion_pipeline/
 |  |- __init__.py
 |  |- chunker.py
 |  |- embedder.py
 |  |- loader.py
+|  |- orchestrator.py
 |- retrieval_pipeline/
 |  |- generator.py
 |  |- query_rewriter.py
 |  |- retriever.py
-|- TrainData/
+|- utils/
+|  |- __init__.py
+|  |- config.py
+|  |- file_handler.py
+|  |- session_manager.py
 ```
 
 ## Quick Start
@@ -106,27 +115,32 @@ pip install -r requirements.txt
 
 ```env
 COHERE_API_KEY=your_cohere_api_key
-CHROMA_DB_PATH=./chroma_db
-TRAIN_DATA_PATH=./TrainData
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-1.5-flash
+CHROMA_DB_PATH=./vector_store
 ```
 
-3. Prepare local model
-
-```bash
-ollama pull llama3.2
-```
-
-4. Run ingestion
-
-```bash
-python -c 'from ingestion_pipeline import run_ingestion_pipeline; run_ingestion_pipeline()'
-```
-
-5. Start the app
+3. Start the app
 
 ```bash
 streamlit run app.py
 ```
+
+## Deploy on Streamlit Cloud
+
+1. Push project to GitHub (do not commit `.env`).
+2. Open Streamlit Cloud and create app from your GitHub repo.
+3. Set `Main file path` to `app.py`.
+4. In Streamlit app settings, open `Secrets` and paste:
+
+```toml
+COHERE_API_KEY = "your_cohere_api_key"
+GEMINI_API_KEY = "your_gemini_api_key"
+GEMINI_MODEL = "gemini-1.5-flash"
+CHROMA_DB_PATH = "./vector_store"
+```
+
+5. Click Deploy. Streamlit will return a public URL you can share with recruiters.
 
 ## Why This Project Stands Out
 

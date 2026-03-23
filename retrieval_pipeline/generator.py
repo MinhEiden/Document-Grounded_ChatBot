@@ -1,10 +1,19 @@
-from langchain_ollama import ChatOllama
+import os
+from langchain_google_genai import ChatGoogleGenerativeAI
+from utils.config import get_config
 
 
 def generate_answer(question: str, context: str) -> str:
     """Sinh câu trả lời dựa trên context đã truy xuất (RAG)."""
-    # Dùng llama3.2 (hoặc gemma2, qwen2) tùy model bạn đã pull trong Ollama
-    llm = ChatOllama(model="llama3.2", temperature=0.3)
+    gemini_api_key = get_config("GEMINI_API_KEY")
+    if not gemini_api_key:
+        return "Loi cau hinh: chua tim thay GEMINI_API_KEY trong moi truong."
+
+    llm = ChatGoogleGenerativeAI(
+        model=get_config("GEMINI_MODEL", "gemini-1.5-flash"),
+        temperature=0.3,
+        google_api_key=gemini_api_key,
+    )
     
     if not context.strip():
         prompt = (

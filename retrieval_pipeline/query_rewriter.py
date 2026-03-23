@@ -1,5 +1,8 @@
-from langchain_ollama import ChatOllama
+import os
+import warnings
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from utils.config import get_config
 
 
 def rewrite_query(query: str, chat_history: list = None) -> str:
@@ -12,8 +15,18 @@ def rewrite_query(query: str, chat_history: list = None) -> str:
     if not chat_history:
         return query
 
-    # Dùng llama3.2 (hoặc gemma2, qwen2) tùy model bạn đã pull trong Ollama
-    llm = ChatOllama(model="llama3.2", temperature=0)
+    gemini_api_key = get_config("GEMINI_API_KEY")
+    if not gemini_api_key:
+        warning_msg = "[query_rewriter] Thieu GEMINI_API_KEY. Bo qua buoc rewrite va dung cau hoi goc."
+        print(f"⚠️ {warning_msg}")
+        warnings.warn(warning_msg, RuntimeWarning)
+        return query
+
+    llm = ChatGoogleGenerativeAI(
+        model=get_config("GEMINI_MODEL", "gemini-1.5-flash"),
+        temperature=0,
+        google_api_key=gemini_api_key,
+    )
     
     # Format chat history thành định dạng Langchain hiểu
     formatted_history = []

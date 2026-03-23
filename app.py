@@ -1,60 +1,90 @@
-import streamlit as st
 import os
+import streamlit as st
 from dotenv import load_dotenv
+from langchain_chroma import Chroma
+from langchain_cohere import CohereEmbeddings
+
+from ingestion_pipeline.orchestrator import ingest_file
 from retrieval_pipeline.retriever import retrieve_context
 from retrieval_pipeline.generator import generate_answer
 from retrieval_pipeline.query_rewriter import rewrite_query
-from langchain_chroma import Chroma
-from langchain_cohere import CohereEmbeddings
+from utils.config import get_config
+from utils.file_handler import save_uploaded_file
+from utils.session_manager import get_or_create_session_id
 
 load_dotenv()
 
 # Kiểm tra các API Key bắt buộc (Bỏ OPENAI_API_KEY vì dùng Ollama)
-if not os.getenv("COHERE_API_KEY"):
+if not get_config("COHERE_API_KEY"):
     st.warning("⚠️ Cảnh báo: Bạn cần cấu hình COHERE_API_KEY trong file .env để hệ thống vector hóa hoạt động.")
 
-def get_ingested_files():
-    """Lấy danh sách các file đã được ingest vào ChromaDB."""
-    chroma_path = os.getenv("CHROMA_DB_PATH", "./chroma_db")
+def get_ingested_files(session_id: str):
+    """Lấy danh sách file đã ingest cho session hiện tại."""
+    chroma_path = get_config("CHROMA_DB_PATH", "./vector_store")
     if not os.path.exists(chroma_path):
         return []
-    
+
     try:
         embeddings = CohereEmbeddings(model="embed-multilingual-v3.0")
-        db = Chroma(persist_directory=chroma_path, embedding_function=embeddings)
-        data = db.get()
+        db = Chroma(
+            persist_directory=chroma_path,
+            embedding_function=embeddings,
+            collection_name="academic_chatbot",
+        )
+        data = db.get(where={"session_id": session_id})
         if not data or "metadatas" not in data or not data["metadatas"]:
             return []
-            
+
         sources = set()
         for meta in data["metadatas"]:
-            if meta and "source" in meta:
-                # Chỉ lấy tên file từ đường dẫn
-                sources.add(os.path.basename(meta["source"]))
+            if meta:
+                filename = meta.get("filename") or os.path.basename(meta.get("source", ""))
+                if filename:
+                    sources.add(filename)
         return sorted(list(sources))
-    except Exception as e:
+    except Exception:
         return []
 
 st.set_page_config(page_title="Academic Chatbot", page_icon="📚", layout="wide")
+session_id = get_or_create_session_id(st.session_state)
+
 st.title("📚 Academic Chatbot")
 st.caption("Hỏi đáp tài liệu học thuật với AI")
 
 # Sidebar - Hiển thị trạng thái dữ liệu
 with st.sidebar:
     st.header("📁 Trạng thái dữ liệu")
-    
-    ingested_files = get_ingested_files()
-    
+
+    uploaded_files = st.file_uploader(
+        "Kéo/thả hoặc chọn file (PDF/DOCX)",
+        type=["pdf", "docx"],
+        accept_multiple_files=True,
+    )
+
+    if uploaded_files and st.button("Ingest tài liệu", use_container_width=True):
+        ingest_results = []
+        for uf in uploaded_files:
+            saved_path = save_uploaded_file(uf, session_id=session_id)
+            info = ingest_file(saved_path, session_id=session_id)
+            if info:
+                ingest_results.append((uf.name, info))
+
+        if ingest_results:
+            st.success(f"Đã ingest {len(ingest_results)} file cho phiên hiện tại.")
+            for name, info in ingest_results:
+                st.markdown(f"- ✅ {name} (chunks: {info['chunk_count']}, file_id: {info['file_id']})")
+        else:
+            st.error("Ingest thất bại. Kiểm tra lại định dạng hoặc log.")
+
+    ingested_files = get_ingested_files(session_id)
     if not ingested_files:
-        st.info("Chưa có file nào trong cuộc trò chuyện.")
+        st.info("Chưa có file nào trong phiên này.")
     else:
-        st.success(f"Đã nạp {len(ingested_files)} tài liệu vào hệ thống:")
+        st.success(f"Đã nạp {len(ingested_files)} tài liệu trong phiên:")
         for f in ingested_files:
             st.markdown(f"- 📄 {f}")
-            
-    st.divider()
-    st.caption("💡 *Lưu ý: Quá trình phân tích và nạp tài liệu (Ingestion) hiện được thực hiện thông qua dòng lệnh.*")
-    st.code("python -c 'from ingestion_pipeline import run_ingestion_pipeline; run_ingestion_pipeline()'", language="bash")
+
+    st.caption(f"Session ID: {session_id}")
 
 # Chat interface
 if "messages" not in st.session_state:
@@ -86,8 +116,7 @@ if prompt := st.chat_input("Nhập câu hỏi của bạn..."):
             # Có thể in mờ ra để debug xem nó có viết lại đúng không
             # st.caption(f"*Standalone query:* {rewritten}")
             
-            # Lấy list of documents thay vì string thuần
-            retrieved_docs = retrieve_context(rewritten)
+            retrieved_docs = retrieve_context(rewritten, session_id=session_id)
             
             # Khởi tạo giá trị ban đầu để tạo answer
             if not retrieved_docs:
