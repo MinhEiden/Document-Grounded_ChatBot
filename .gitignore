@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+.DS_Store
+
+# Local vector database artifacts
+chroma_db/
+
+# Optional local virtual environments
+.venv/
+venv/
