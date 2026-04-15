@@ -4,7 +4,7 @@ load_dotenv(override=True)
 import os
 import shutil
 from .loader import load_documents
-from .chunker import chunk_documents
+from .chunker import process_and_enrich_documents
 from .embedder import embed_and_store
 
 def run_ingestion_pipeline(data_path: str = "./TrainData"):
@@ -31,13 +31,13 @@ def run_ingestion_pipeline(data_path: str = "./TrainData"):
     else:
         os.makedirs(chroma_path, exist_ok=True)
 
-    print(f"\n🚀 Bắt đầu Ingestion Pipeline cho thư mục: {data_path}")
+    print(f"\nBắt đầu Ingestion Pipeline cho thư mục: {data_path}")
     documents = load_documents(data_path)
     if not documents:
         print("❌ Không tìm thấy tài liệu phù hợp nào.")
         return
 
-    chunks = chunk_documents(documents)
+    chunks = process_and_enrich_documents(documents)
     if not chunks:
         print("❌ Thất bại trong việc chia chunk tài liệu.")
         return

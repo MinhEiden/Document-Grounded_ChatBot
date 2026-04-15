@@ -1,12 +1,14 @@
 import os
+import unicodedata
 from docling.document_converter import DocumentConverter
+from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_core.documents import Document
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx"}
 
 
 def load_documents(directory: str) -> list:
-    """Đọc file bằng Docling (giữ nguyên layout markdown, bảng biểu tốt hơn)."""
+    """Đọc file bằng PyMuPDFLoader (PDF) và Docling (DOCX), chuẩn hóa NFC cho tiếng Việt."""
     documents = []
     converter = DocumentConverter()
     
@@ -16,15 +18,23 @@ def load_documents(directory: str) -> list:
             if ext not in SUPPORTED_EXTENSIONS:
                 continue
             filepath = os.path.join(root, filename)
-            print(f"📄 Đang đọc bằng Docling: {filepath}")
             
             try:
-                result = converter.convert(filepath)
-                text_content = result.document.export_to_markdown()
+                if ext == ".pdf":
+                    print(f"📄 Đang đọc bằng PyMuPDFLoader: {filepath}")
+                    loader = PyMuPDFLoader(filepath)
+                    loaded_docs = loader.load()
+                    text_content = "\n\n".join([d.page_content for d in loaded_docs])
+                else:  
+                    print(f"📄 Đang đọc bằng Docling: {filepath}")
+                    result = converter.convert(filepath)
+                    text_content = result.document.export_to_markdown()
+                
+                normalized_text = unicodedata.normalize('NFC', text_content)
                 
                 doc = Document(
-                    page_content=text_content,
-                    metadata={"source": filepath, "type": ext}
+                    page_content=normalized_text,
+                    metadata={"source": filename, "type": ext}
                 )
                 documents.append(doc)
             except Exception as e:

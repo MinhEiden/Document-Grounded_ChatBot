@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from dotenv import load_dotenv
-from retrieval_pipeline.retriever import retrieve_context
+from retrieval_pipeline.retriever import search, rerank
 from retrieval_pipeline.generator import generate_answer
 from retrieval_pipeline.query_rewriter import rewrite_query
 from langchain_chroma import Chroma
@@ -23,23 +23,21 @@ def get_ingested_files():
         data = db.get()
         if not data or "metadatas" not in data or not data["metadatas"]:
             return []
-            
         sources = set()
         for meta in data["metadatas"]:
             if meta and "source" in meta:
-                # Chỉ lấy tên file từ đường dẫn
                 sources.add(os.path.basename(meta["source"]))
         return sorted(list(sources))
     except Exception as e:
         return []
 
-st.set_page_config(page_title="Academic Chatbot", page_icon="📚", layout="wide")
-st.title("📚 Academic Chatbot")
+st.set_page_config(page_title="Academic Chatbot", page_icon="", layout="wide")
+st.title(" Academic Chatbot")
 st.caption("Hỏi đáp tài liệu học thuật với AI")
 
-# Sidebar - Hiển thị trạng thái dữ liệu
+
 with st.sidebar:
-    st.header("📁 Trạng thái dữ liệu")
+    st.header(" Trạng thái dữ liệu")
     
     ingested_files = get_ingested_files()
     
@@ -54,7 +52,6 @@ with st.sidebar:
     st.caption("💡 *Lưu ý: Quá trình phân tích và nạp tài liệu (Ingestion) hiện được thực hiện thông qua dòng lệnh.*")
     st.code("python -c 'from ingestion_pipeline import run_ingestion_pipeline; run_ingestion_pipeline()'", language="bash")
 
-# Chat interface
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -62,7 +59,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         if "docs" in msg and msg["docs"]:
-            with st.expander("📚 Tài liệu tham khảo"):
+            with st.expander(" Tài liệu tham khảo"):
                 for i, doc in enumerate(msg["docs"]):
                     source = doc.metadata.get("source", "Không rõ nguồn")
                     filename = os.path.basename(source)
@@ -70,8 +67,10 @@ for msg in st.session_state.messages:
                     st.info(doc.page_content)
 
 if prompt := st.chat_input("Nhập câu hỏi của bạn..."):
-    # Lấy 10 tin nhắn gần nhất làm buffer (5 user, 5 assistant)
-    chat_history_buffer = st.session_state.messages[-10:] if len(st.session_state.messages) > 0 else []
+    
+    chat_history_buffer = st.session_state.messages[-20:] if len(st.session_state.messages) > 0 else []
+    
+
 
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -79,24 +78,26 @@ if prompt := st.chat_input("Nhập câu hỏi của bạn..."):
 
     with st.chat_message("assistant"):
         with st.spinner("Đang suy nghĩ..."):
-            # Đưa history vào để rewrite tạo Standalone Question
+            
             rewritten = rewrite_query(prompt, chat_history_buffer)
 
-            retrieved_docs = retrieve_context(rewritten)
+            searched_docs = search(rewritten, k=5)
+            retrieved_docs = rerank(rewritten, searched_docs, k=3)
             
-            # Khởi tạo giá trị ban đầu để tạo answer
+           
             if not retrieved_docs:
                 context_str = ""
             else:
                 context_str = "\n\n---\n\n".join([doc.page_content for doc in retrieved_docs])
                 
-            answer = generate_answer(rewritten, context_str)
+        
+            answer = generate_answer(prompt, context_str, chat_history_buffer)
             
         st.markdown(answer)
         
-        # Gắn thêm tài liệu tham khảo nếu có trong một expander
+        
         if retrieved_docs:
-            with st.expander("📚 Tài liệu tham khảo"):
+            with st.expander(" Tài liệu tham khảo"):
                 for i, doc in enumerate(retrieved_docs):
                     source = doc.metadata.get("source", "Không rõ nguồn")
                     filename = os.path.basename(source)
